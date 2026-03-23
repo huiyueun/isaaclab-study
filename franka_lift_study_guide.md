@@ -168,6 +168,45 @@ gym.register(
 - `--task Isaac-Lift-Cube-Franka-v0` 입력 시 `FrankaCubeLiftEnvCfg` 환경 구성 사용
 - RSL-RL PPO 설정도 함께 연결
 
+### 4.2 태스크 파라미터 요약 (간단 버전)
+
+`Isaac-Lift-Cube-Franka-v0` 기준으로 먼저 보면 되는 파라미터:
+
+- `id`  
+  역할: CLI에서 호출하는 태스크 이름.
+
+- `entry_point`  
+  역할: 어떤 env 실행 클래스를 쓸지 지정 (`ManagerBasedRLEnv`).
+
+- `env_cfg_entry_point`  
+  역할: 환경 설정 클래스 지정 (`FrankaCubeLiftEnvCfg`).
+
+- `rsl_rl_cfg_entry_point`  
+  역할: PPO 학습 설정 클래스 지정 (`LiftCubePPORunnerCfg`).
+
+- `scene.num_envs` (`lift_env_cfg.py`)  
+  역할: 병렬 환경 수. 클수록 데이터 수집 빠르지만 GPU 메모리 사용 증가.
+
+- `episode_length_s` (`lift_env_cfg.py`)  
+  역할: 한 에피소드 길이(초). 시간 초과 종료 기준.
+
+- `sim.dt`, `decimation` (`lift_env_cfg.py`)  
+  역할: 시뮬레이션 시간 해상도/제어 주기 결정.
+
+- `minimal_height` (`RewardsCfg.lifting_object`)  
+  역할: "들었다"고 인정하는 높이 임계값.
+
+- `weight` (각 Reward 항목)  
+  역할: 어떤 행동을 더 강하게 학습할지 결정하는 중요도.
+
+- `learning_rate`, `clip_param`, `num_learning_epochs` (`rsl_rl_ppo_cfg.py`)  
+  역할: PPO 업데이트 속도/안정성/학습 강도 결정.
+
+실무에서 처음 조정 순서:
+1. 보상 가중치(`weight`)와 목표 범위
+2. `scene.num_envs` / `episode_length_s`
+3. 마지막에 PPO 파라미터
+
 ---
 
 ## 5. MDP 구조
