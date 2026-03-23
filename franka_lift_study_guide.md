@@ -7,7 +7,7 @@
 
 ---
 
-## 1. 먼저 큰 그림
+## 1. Overview
 
 Franka Lift 태스크 핵심 목표:
 - 로봇 팔(Franka)이 큐브를 집고 들어서 목표 위치로 옮기도록 정책(Policy) 학습
@@ -15,11 +15,11 @@ Franka Lift 태스크 핵심 목표:
 강화학습 최소 개념:
 - 상태(State): 로봇이 보는 정보
 - 행동(Action): 로봇이 내리는 명령
-- 보상(Reward): 잘했는지 점수
+- 보상(Reward): 동작을 잘했는지 점수
 - 종료(Termination): 한 에피소드 끝나는 조건
 - 정책(Policy): 상태를 입력받아 행동을 출력하는 신경망
 
-Isaac Lab에서의 역할 분담:
+Isaac Lab의 역할:
 - Isaac Sim: 물리 계산
 - Isaac Lab 환경 코드: 상태/행동/보상/종료 정의
 - RL 알고리즘(PPO): 정책 가중치 업데이트
