@@ -1,13 +1,25 @@
 # Lift에서 Push로 확장하는 셀프 교과서
 
-## 0. 이 문서의 목표
+## 사전 용어
+
+- `MDP` : 강화학습 문제를 정의하는 틀(상태, 행동, 보상, 종료).
+- `Policy` : 상태를 입력받아 행동을 출력하는 함수(보통 신경망).
+- `PPO` : Policy를 안정적으로 조금씩 업데이트하는 대표 RL 알고리즘.
+- `Observation` : 에이전트가 매 스텝 보는 입력값(관절각, 물체 위치 등).
+- `Action` : 에이전트가 내리는 명령(관절 목표값, 그리퍼 명령 등).
+- `Reward` : 행동 결과에 대한 점수 신호(학습 방향 결정).
+- `Episode` : 초기화부터 종료까지 한 번의 시도.
+- `train` : 정책을 학습하는 단계.
+- `play` : 학습된 정책을 불러 동작만 확인하는 단계.
+
+## 0. 문서 목적
 - Lift 예제를 이해한 사람이 Push 태스크를 직접 설계/구현할 수 있게 안내
 - "무엇을 왜 바꾸는지"를 코드 기준으로 설명
 - 학습(train)과 실행(play)까지 한 번에 연결
 
 ---
 
-## 1. Lift와 Push의 본질 차이
+## 1. Lift-Push 차이
 
 Lift:
 - 물체를 집어서 들어올리고 목표 위치로 옮기는 태스크
@@ -25,7 +37,7 @@ Push:
 
 ---
 
-## 2. 새 태스크가 어디에 생겼는지
+## 2. 파일 구성
 
 기준 경로:
 - `source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/push/`
@@ -48,7 +60,7 @@ Push:
 
 ---
 
-## 3. 환경 등록 비교 (Lift -> Push)
+## 3. 환경 등록 비교
 
 코드 원문 (Push, `config/franka/__init__.py`):
 ```python
@@ -78,7 +90,7 @@ gym.register(
 
 ---
 
-## 4. 가장 중요한 변경 1: Action 구조 단순화
+## 4. 변경 1: Action
 
 Lift에서는 arm + gripper 사용.
 Push에서는 arm only 사용.
@@ -106,7 +118,7 @@ self.actions.arm_action = mdp.JointPositionActionCfg(
 
 ---
 
-## 5. 가장 중요한 변경 2: Reward 재설계
+## 5. 변경 2: Reward
 
 Lift 보상 중심:
 - 접근
@@ -166,7 +178,7 @@ def object_moved(env, min_velocity: float = 0.01, object_cfg: SceneEntityCfg = S
 
 ---
 
-## 6. 가장 중요한 변경 3: 목표/초기조건을 테이블 평면 기준으로 고정
+## 6. 변경 3: 목표/초기조건
 
 코드 원문 (`push_env_cfg.py`):
 ```python
@@ -185,7 +197,7 @@ object_pose = mdp.UniformPoseCommandCfg(
 
 ---
 
-## 7. 가장 중요한 변경 4: Domain Randomization 도입
+## 7. 변경 4: Domain Randomization
 
 코드 원문 (`push_env_cfg.py`):
 ```python
@@ -218,7 +230,7 @@ randomize_object_friction = EventTerm(
 
 ---
 
-## 8. Play 모드 실전 셋업
+## 8. Play 설정
 
 코드 원문 (`config/franka/joint_pos_env_cfg.py`):
 ```python
@@ -245,7 +257,7 @@ class FrankaCubePushEnvCfg_PLAY(FrankaCubePushEnvCfg):
 
 ---
 
-## 9. PPO 설정 관점
+## 9. PPO 설정
 
 코드 원문 (Push, `config/franka/agents/rsl_rl_ppo_cfg.py`):
 ```python
@@ -279,7 +291,7 @@ algorithm = RslRlPpoAlgorithmCfg(
 
 ---
 
-## 10. 실행 가이드
+## 10. 실행
 
 학습:
 ```bash
@@ -299,7 +311,7 @@ algorithm = RslRlPpoAlgorithmCfg(
 
 ---
 
-## 11. Lift -> Push 전환 체크리스트
+## 11. 전환 체크리스트
 
 1. task 등록 (`__init__.py`) 완료
 2. `ActionsCfg`에서 gripper 제거 완료
@@ -310,7 +322,7 @@ algorithm = RslRlPpoAlgorithmCfg(
 
 ---
 
-## 12. 다음 실습 과제
+## 12. 실습 과제
 
 1. `object_moved` 임계속도(`min_velocity`)를 바꿔 학습 안정성 비교
 2. `pushing_object` 가중치(2.0)를 조정해 목표 지향성 변화 확인

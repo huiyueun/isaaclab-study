@@ -1,13 +1,25 @@
 # Franka Lift 셀프 교과서
 
-## 0. 이 문서의 목표
+## 사전 용어
+
+- `MDP` : 강화학습 문제를 정의하는 틀(상태, 행동, 보상, 종료).
+- `Policy` : 상태를 입력받아 행동을 출력하는 함수(보통 신경망).
+- `PPO` : Policy를 안정적으로 조금씩 업데이트하는 대표 RL 알고리즘.
+- `Observation` : 에이전트가 매 스텝 보는 입력값(관절각, 물체 위치 등).
+- `Action` : 에이전트가 내리는 명령(관절 목표값, 그리퍼 열기/닫기 등).
+- `Reward` : 행동 결과에 대한 점수 신호(학습 방향 결정).
+- `Episode` : 초기화부터 종료까지 한 번의 시도.
+- `train` : 정책을 학습하는 단계.
+- `play` : 학습된 정책을 불러 동작만 확인하는 단계.
+
+## 0. 문서 목적
 - 강화학습(RL)을 모르는 상태에서도 `Franka Lift` 예제의 구조를 이해
 - Isaac Lab에서 실제로 어떤 파일을 읽고 수정해야 하는지 파악
 - `train -> play` 흐름으로 직접 실행하고 결과를 해석
 
 ---
 
-## 1. Overview
+## 1. 개요
 
 Franka Lift 태스크 핵심 목표:
 - 로봇 팔(Franka)이 큐브를 집고 들어서 목표 위치로 옮기도록 정책(Policy) 학습
@@ -26,31 +38,93 @@ Isaac Lab의 역할:
 
 ---
 
-## 2. 파일 지도로 시작
+## 2. 파일 구성
 
 기준 경로:
 - `source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/`
 
-핵심 파일:
-1. `config/franka/__init__.py`
-- 환경 ID 등록 (`--task` 문자열과 실제 환경 클래스 연결)
+핵심 파일 5개는 "기능"이 아니라 "역할"로 구분해서 보면 바로 이해 가능.
 
-2. `lift_env_cfg.py`
-- Lift 태스크의 MDP 골격 정의
-- Observations/Actions/Rewards/Terminations/Curriculum 구성
+1. `config/franka/__init__.py`  
+역할: 실행 문자열(`--task`)을 실제 환경/학습 설정에 연결하는 라우터
 
-3. `config/franka/joint_pos_env_cfg.py`
-- Franka 로봇, 큐브, 그리퍼, End-Effector 프레임 설정
+2. `lift_env_cfg.py`  
+역할: Lift 문제의 뼈대(MDP 선언) 정의
 
-4. `mdp/rewards.py`
-- 보상 계산 함수 실제 구현
+3. `config/franka/joint_pos_env_cfg.py`  
+역할: 뼈대를 Franka 로봇 기준으로 채우는 로봇 특화 설정
 
-5. `config/franka/agents/rsl_rl_ppo_cfg.py`
-- PPO 하이퍼파라미터 설정
+4. `mdp/rewards.py`  
+역할: `lift_env_cfg.py`에서 선언한 보상 항목의 실제 계산식 구현
+
+5. `config/franka/agents/rsl_rl_ppo_cfg.py`  
+역할: PPO 학습 하이퍼파라미터 정의
+
+### 2.1 비유로 이해하기
+
+- `lift_env_cfg.py`: 문제집 목차 (무엇을 평가할지 정의)
+- `mdp/rewards.py`: 채점 기준표 (점수 계산식)
+- `joint_pos_env_cfg.py`: 시험 응시자 스펙 (Franka 몸체/관절/그리퍼)
+- `rsl_rl_ppo_cfg.py`: 공부 방법 (PPO 학습 전략)
+- `__init__.py`: 시험장 안내판 (`--task`가 어디로 연결되는지)
+
+### 2.2 파일 관계도 (그림)
+
+```text
+[CLI]
+  ./isaaclab.sh ... --task Isaac-Lift-Cube-Franka-v0
+            |
+            v
+[config/franka/__init__.py]
+  gym.register(id="Isaac-Lift-Cube-Franka-v0", ...)
+            |
+            +--> env_cfg_entry_point -> FrankaCubeLiftEnvCfg
+            |                         (config/franka/joint_pos_env_cfg.py)
+            |
+            |      inherits
+            |         from
+            |          v
+            +------> LiftEnvCfg (lift_env_cfg.py)
+            |          |- ObservationsCfg
+            |          |- ActionsCfg
+            |          |- RewardsCfg  ----calls----> mdp/rewards.py
+            |          |- TerminationsCfg
+            |          |- Events/Curriculum
+            |
+            +--> rsl_rl_cfg_entry_point -> LiftCubePPORunnerCfg
+                                      (config/franka/agents/rsl_rl_ppo_cfg.py)
+```
+
+### 2.3 실제 호출 흐름 (학습 시점)
+
+1. `--task Isaac-Lift-Cube-Franka-v0` 입력
+2. `config/franka/__init__.py`가 해당 ID를 `FrankaCubeLiftEnvCfg`와 PPO 설정에 연결
+3. `FrankaCubeLiftEnvCfg`가 `LiftEnvCfg`를 상속해 Franka 로봇/그리퍼/큐브 설정 적용
+4. 학습 루프에서 `LiftEnvCfg.RewardsCfg` 항목이 `mdp/rewards.py` 함수 호출
+5. PPO는 `rsl_rl_ppo_cfg.py` 설정으로 정책 업데이트 반복
+
+### 2.4 어디를 수정해야 무엇이 바뀌는지
+
+- 태스크 규칙(관측/보상/종료)을 바꾸고 싶다:
+  - `lift_env_cfg.py`, `mdp/rewards.py`
+- 로봇 동작 방식(그리퍼, 관절 스케일, 오브젝트 초기값)을 바꾸고 싶다:
+  - `config/franka/joint_pos_env_cfg.py`
+- 학습 속도/안정성(PPO)을 튜닝하고 싶다:
+  - `config/franka/agents/rsl_rl_ppo_cfg.py`
+- `--task` 이름/등록 자체를 바꾸고 싶다:
+  - `config/franka/__init__.py`
+
+### 2.5 초보자용 권장 읽기 순서
+
+1. `config/franka/__init__.py` (연결점 이해)
+2. `lift_env_cfg.py` (문제 정의 이해)
+3. `mdp/rewards.py` (점수 계산 이해)
+4. `config/franka/joint_pos_env_cfg.py` (Franka 특화 이해)
+5. `config/franka/agents/rsl_rl_ppo_cfg.py` (학습 설정 이해)
 
 ---
 
-## 3. 실행부터 해보기 (중요)
+## 3. 실행
 
 처음에는 보통 `train` 먼저 실행, 그 다음 `play` 실행.
 
@@ -70,7 +144,7 @@ Isaac Lab의 역할:
 
 ---
 
-## 4. 환경 등록 코드 읽기
+## 4. 환경 등록
 
 ### 4.1 task 문자열이 어디서 연결되는지
 
@@ -96,7 +170,7 @@ gym.register(
 
 ---
 
-## 5. Lift MDP 골격 읽기
+## 5. MDP 구조
 
 ### 5.1 관측(Observation)
 
@@ -169,7 +243,7 @@ class TerminationsCfg:
 
 ---
 
-## 6. Franka 전용 설정 읽기
+## 6. Franka 설정
 
 코드 원문 (`config/franka/joint_pos_env_cfg.py`):
 ```python
@@ -204,7 +278,7 @@ class FrankaCubeLiftEnvCfg_PLAY(FrankaCubeLiftEnvCfg):
 
 ---
 
-## 7. 보상 함수 실제 계산 읽기
+## 7. 보상 함수
 
 코드 원문 (`mdp/rewards.py`):
 ```python
@@ -247,7 +321,7 @@ def object_goal_distance(env, std, minimal_height, command_name, robot_cfg=Scene
 
 ---
 
-## 8. PPO 설정 읽기
+## 8. PPO 설정
 
 코드 원문 (`config/franka/agents/rsl_rl_ppo_cfg.py`):
 ```python
@@ -276,7 +350,7 @@ algorithm = RslRlPpoAlgorithmCfg(
 
 ---
 
-## 9. 입문자 기준 체크리스트
+## 9. 체크리스트
 
 1. `--task` 문자열과 env class 연결 위치를 찾을 수 있는가
 2. 관측/행동/보상/종료 각각이 어느 파일에 있는지 구분 가능한가
@@ -286,7 +360,7 @@ algorithm = RslRlPpoAlgorithmCfg(
 
 ---
 
-## 10. 다음 학습 순서
+## 10. 학습 순서
 
 1. Lift 기본 실행 성공 (`train`, `play`)
 2. `RewardsCfg` 숫자 1개만 바꿔서 행동 변화 관찰
